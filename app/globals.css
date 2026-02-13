@@ -1,0 +1,61 @@
+@import "tailwindcss";
+
+@theme {
+  --color-primary-blue: var(--primary-blue);
+  --color-soft-purple: var(--soft-purple);
+  --color-vibrant-bg: var(--vibrant-bg);
+  --color-card-bg: var(--card-bg);
+  --color-accent-cyan: var(--accent-cyan);
+  --color-text-dark: var(--text-dark);
+
+  --font-sans: var(--font-outfit), ui-sans-serif, system-ui, sans-serif;
+}
+
+:root {
+  --primary-color: #4F46E5;
+  --primary-light: #818CF8;
+  --primary-dark: #3730A3;
+  --secondary-bg: #F3F4F6;
+  --success-color: #10B981;
+  --error-color: #EF4444;
+  --warning-color: #F59E0B;
+  --surface-color: #FFFFFF;
+
+  /* Previous aliases/variables */
+  --primary-blue: #4f46e5;
+  --soft-purple: #a855f7;
+  --vibrant-bg: #f3f4f6;
+  --bg-canvas: #F8FAFC;
+  --bg-surface: #FFFFFF;
+  --card-bg: #ffffff;
+  --accent-cyan: #06b6d4;
+  --text-dark: #1f2937;
+  --text-main: #111827;
+  --text-secondary: #6B7280;
+  --success-green: #22C55E;
+  --warning-amber: #F59E0B;
+  --border-color: #E2E8F0;
+
+  /* Fallback for font if not loaded by next/font */
+  --font-outfit: 'Outfit', sans-serif;
+}
+
+body {
+  background-color: var(--vibrant-bg);
+  font-family: var(--font-sans);
+}
+
+.gradient-text {
+  background: linear-gradient(135deg, var(--primary-blue), var(--soft-purple));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.gradient-bg {
+  background: linear-gradient(135deg, var(--primary-blue), var(--soft-purple));
+}
+
+.glass-effect {
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(10px);
+}
