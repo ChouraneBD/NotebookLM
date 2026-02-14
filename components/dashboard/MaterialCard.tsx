@@ -3,6 +3,8 @@
 import { useState } from 'react'
 import { deleteMaterial } from '@/actions/materials'
 import CreateTestModal from '@/components/CreateTestModal'
+import MaterialHistoryModal from '@/components/MaterialHistoryModal'
+import MaterialPreviewModal from '@/components/MaterialPreviewModal'
 import { useRouter } from 'next/navigation'
 
 interface MaterialCardProps {
@@ -18,6 +20,8 @@ export default function MaterialCard({ material }: MaterialCardProps) {
     const router = useRouter()
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
     const [isGenerateModalOpen, setIsGenerateModalOpen] = useState(false)
+    const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false)
+    const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false)
     const [isDeleting, setIsDeleting] = useState(false)
 
     const handleDelete = async () => {
@@ -42,8 +46,14 @@ export default function MaterialCard({ material }: MaterialCardProps) {
                         <div className="w-10 h-10 bg-indigo-50 text-[var(--primary-blue)] rounded-lg flex items-center justify-center">
                             <span className="material-symbols-outlined text-2xl">description</span>
                         </div>
-                        <div className="relative">
-                            {/* Context Menu or simple delete button for now */}
+                        <div className="relative flex items-center gap-1">
+                            <button
+                                onClick={() => setIsPreviewModalOpen(true)}
+                                className="text-gray-400 hover:text-[var(--primary-blue)] transition-colors p-1"
+                                title="Preview Content"
+                            >
+                                <span className="material-symbols-outlined text-lg">visibility</span>
+                            </button>
                             <button
                                 onClick={() => setIsDeleteModalOpen(true)}
                                 className="text-gray-400 hover:text-red-500 transition-colors p-1"
@@ -55,7 +65,17 @@ export default function MaterialCard({ material }: MaterialCardProps) {
                     </div>
 
                     <h3 className="font-bold text-gray-800 text-lg mb-1 line-clamp-2 min-h-[3.5rem]">{material.title}</h3>
-                    <p className="text-xs text-gray-400 mb-4">{new Date(material.created_at).toLocaleDateString()}</p>
+                    <div className="flex items-center justify-between mb-4">
+                        <p className="text-xs text-gray-400">{new Date(material.created_at).toLocaleDateString()}</p>
+                        <button
+                            onClick={() => setIsHistoryModalOpen(true)}
+                            className="flex items-center gap-1 text-xs font-medium text-[var(--primary-blue)] hover:text-indigo-700 bg-indigo-50 hover:bg-indigo-100 px-2 py-1 rounded-md transition-colors"
+                            title="View Exam History"
+                        >
+                            <span className="material-symbols-outlined text-[16px]">history</span>
+                            History
+                        </button>
+                    </div>
                 </div>
 
                 <div className="border-t border-gray-50 pt-4 mt-auto">
@@ -69,7 +89,13 @@ export default function MaterialCard({ material }: MaterialCardProps) {
                 </div>
             </div>
 
-            {/* Generate Test Modal (Pre-filled) */}
+            <MaterialPreviewModal
+                isOpen={isPreviewModalOpen}
+                onClose={() => setIsPreviewModalOpen(false)}
+                materialId={material.id}
+                materialTitle={material.title}
+            />
+
             <CreateTestModal
                 isOpen={isGenerateModalOpen}
                 onClose={() => setIsGenerateModalOpen(false)}
@@ -77,7 +103,13 @@ export default function MaterialCard({ material }: MaterialCardProps) {
                 initialTitle={material.title}
             />
 
-            {/* Delete Confirmation Modal */}
+            <MaterialHistoryModal
+                isOpen={isHistoryModalOpen}
+                onClose={() => setIsHistoryModalOpen(false)}
+                materialId={material.id}
+                materialTitle={material.title}
+            />
+
             {isDeleteModalOpen && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
                     <div className="bg-white rounded-2xl shadow-xl max-w-sm w-full p-6">
