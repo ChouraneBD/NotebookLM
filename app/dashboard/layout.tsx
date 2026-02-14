@@ -15,21 +15,17 @@ export default function DashboardLayout({
                         <h1 className="font-bold text-2xl tracking-tight gradient-text">ExamSim</h1>
                     </div>
                     <nav className="p-4 space-y-2 mt-4">
-                        <Link href="/dashboard" className="flex items-center gap-3 px-4 py-3 rounded-xl bg-indigo-50 text-[var(--primary-blue)] font-medium transition-colors">
-                            <span className="material-symbols-outlined filled">dashboard</span>
+                        <Link href="/dashboard" className="flex items-center gap-3 px-4 py-3 rounded-xl text-gray-500 hover:bg-gray-50 hover:text-gray-900 font-medium transition-colors">
+                            <span className="material-symbols-outlined">dashboard</span>
                             Home
                         </Link>
-                        <Link href="/dashboard" className="flex items-center gap-3 px-4 py-3 rounded-xl text-gray-500 hover:bg-gray-50 hover:text-gray-900 font-medium transition-colors">
+                        <Link href="/dashboard/history" className="flex items-center gap-3 px-4 py-3 rounded-xl text-gray-500 hover:bg-gray-50 hover:text-gray-900 font-medium transition-colors">
                             <span className="material-symbols-outlined">quiz</span>
                             My Tests
                         </Link>
                         <Link href="/dashboard/materials" className="flex items-center gap-3 px-4 py-3 rounded-xl text-gray-500 hover:bg-gray-50 hover:text-gray-900 font-medium transition-colors">
                             <span className="material-symbols-outlined">library_books</span>
                             Study Materials
-                        </Link>
-                        <Link href="#" className="flex items-center gap-3 px-4 py-3 rounded-xl text-gray-500 hover:bg-gray-50 hover:text-gray-900 font-medium transition-colors">
-                            <span className="material-symbols-outlined">monitoring</span>
-                            Analytics
                         </Link>
                         <Link href="/settings" className="flex items-center gap-3 px-4 py-3 rounded-xl text-gray-500 hover:bg-gray-50 hover:text-gray-900 font-medium transition-colors">
                             <span className="material-symbols-outlined">settings</span>
