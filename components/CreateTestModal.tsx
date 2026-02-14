@@ -15,12 +15,12 @@ interface CreateTestModalProps {
 export default function CreateTestModal({ isOpen, onClose, initialMaterialId, initialTitle }: CreateTestModalProps) {
     const router = useRouter()
     const [file, setFile] = useState<File | null>(null)
+    const [difficulty, setDifficulty] = useState<'Easy' | 'Medium' | 'Hard'>('Medium')
+    const [examType, setExamType] = useState<'Conceptual' | 'Practical' | 'Mixed'>('Mixed')
+    const [questionCount, setQuestionCount] = useState<number>(10)
+    const [customPrompt, setCustomPrompt] = useState<string>('')
     const [status, setStatus] = useState<'idle' | 'uploading' | 'generating' | 'done'>('idle')
     const [error, setError] = useState<string | null>(null)
-
-    // Reset state when opening, but respect initial props
-    // We use a useEffect or just logic inside render if we want it to react to open changes
-    // But simplistic approach: check if we have initialMaterialId
 
     if (!isOpen) return null
 
@@ -53,8 +53,9 @@ export default function CreateTestModal({ isOpen, onClose, initialMaterialId, in
             if (!materialId) throw new Error('No material ID avaiable')
 
             setStatus('generating')
-            // Delay for effect if needed, but the action does the work
-            const examRes = await generateExam(materialId)
+
+            // Pass configuration to generateExam
+            const examRes = await generateExam(materialId, difficulty, examType, questionCount, customPrompt)
 
             if (examRes.success) {
                 setStatus('done')
@@ -107,6 +108,74 @@ export default function CreateTestModal({ isOpen, onClose, initialMaterialId, in
                             </div>
                         )}
 
+                        {/* Configuration Form */}
+                        <div className="space-y-4">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Difficulty</label>
+                                <div className="grid grid-cols-3 gap-2">
+                                    {['Easy', 'Medium', 'Hard'].map((level) => (
+                                        <button
+                                            key={level}
+                                            onClick={() => setDifficulty(level as any)}
+                                            className={`py-2 text-sm rounded-lg border ${difficulty === level
+                                                ? 'bg-[var(--primary-blue)] text-white border-[var(--primary-blue)]'
+                                                : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
+                                                }`}
+                                        >
+                                            {level}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Exam Type</label>
+                                    <select
+                                        value={examType}
+                                        onChange={(e) => setExamType(e.target.value as any)}
+                                        className="w-full p-2 border border-gray-300 rounded-lg text-sm"
+                                    >
+                                        <option value="Conceptual">Conceptual</option>
+                                        <option value="Practical">Practical</option>
+                                        <option value="Mixed">Mixed</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Questions</label>
+                                    <select
+                                        value={questionCount}
+                                        onChange={(e) => setQuestionCount(Number(e.target.value))}
+                                        className="w-full p-2 border border-gray-300 rounded-lg text-sm"
+                                    >
+                                        <option value={5}>5 Questions</option>
+                                        <option value={10}>10 Questions</option>
+                                        <option value={15}>15 Questions</option>
+                                        <option value={20}>20 Questions</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <details className="group">
+                                <summary className="flex items-center gap-2 cursor-pointer text-sm font-medium text-gray-700 list-none">
+                                    <span className="material-symbols-outlined transition-transform group-open:rotate-90 text-gray-400">chevron_right</span>
+                                    Advanced Options
+                                </summary>
+                                <div className="mt-3 pl-2">
+                                    <label className="block text-xs font-medium text-gray-500 mb-1">Custom Instructions (Optional)</label>
+                                    <textarea
+                                        value={customPrompt}
+                                        onChange={(e) => setCustomPrompt(e.target.value)}
+                                        placeholder='e.g., "Focus on legal dates", "Only usage of dates"'
+                                        maxLength={500}
+                                        rows={3}
+                                        className="w-full p-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[var(--primary-blue)] focus:border-transparent outline-none resize-none"
+                                    />
+                                    <p className="text-xs text-right text-gray-400 mt-1">{customPrompt.length}/500</p>
+                                </div>
+                            </details>
+                        </div>
+
                         {error && (
                             <div className="p-3 bg-red-50 text-red-600 text-sm rounded-lg flex items-center gap-2">
                                 <span className="material-symbols-outlined text-sm">error</span>
@@ -138,7 +207,7 @@ export default function CreateTestModal({ isOpen, onClose, initialMaterialId, in
                             <span className="material-symbols-outlined text-2xl">auto_awesome</span>
                         </div>
                         <h4 className="font-bold text-gray-800">AI Generating Questions...</h4>
-                        <p className="text-sm text-gray-500 mt-2">Analyzing content and creating questions.</p>
+                        <p className="text-sm text-gray-500 mt-2">Creating {questionCount} {difficulty.toLowerCase()} questions...</p>
                     </div>
                 )}
 

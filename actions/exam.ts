@@ -2,25 +2,44 @@
 
 import { createClient } from '@/utils/supabase/server'
 import { mockGenerateQuestions } from '@/lib/ai-stub'
+import { generateExamQuestions } from '@/lib/gemini'
+import { revalidatePath } from 'next/cache'
 
-export async function generateExam(materialId: string, difficulty: 'Easy' | 'Medium' | 'Hard' = 'Medium') {
+export async function generateExam(
+    materialId: string,
+    difficulty: 'Easy' | 'Medium' | 'Hard' = 'Medium',
+    examType: 'Conceptual' | 'Practical' | 'Mixed' = 'Mixed',
+    questionCount: number = 10,
+    customPrompt?: string
+) {
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
 
-    let userId = user?.id
-    if (!userId) {
-        console.warn('⚠️ No authenticated user found. Using MOCK_USER_ID for development.')
-        userId = '00000000-0000-0000-0000-000000000000'
+    // Use authorized user or fallback to mock for dev
+    const userId = user?.id || '00000000-0000-0000-0000-000000000000'
+
+    // 1. Fetch Study Material Content
+    const { data: material, error: materialError } = await supabase
+        .from('study_materials')
+        .select('title, processed_text_content')
+        .eq('id', materialId)
+        .single()
+
+    if (materialError || !material) {
+        throw new Error("Study material not found: " + (materialError?.message || 'Unknown error'))
     }
 
-    // 1. Create Exam Record (generating)
+    // 2. Create Exam Record (generating)
     const { data: examData, error: examError } = await supabase
         .from('exams')
         .insert({
             user_id: userId,
             material_source_id: materialId,
-            title: `Practice Exam - ${new Date().toLocaleTimeString()}`,
+            title: `Practice Exam: ${material.title}`,
             difficulty: difficulty,
+            exam_type: examType,
+            question_count: questionCount,
+            custom_prompt: customPrompt,
             status: 'generating',
         })
         .select()
@@ -29,16 +48,29 @@ export async function generateExam(materialId: string, difficulty: 'Easy' | 'Med
     if (examError) throw new Error(examError.message)
 
     try {
-        // 2. Call Mock AI
-        // In a real app with vector search, we'd fetch context first.
-        // For now, we just mock the questions.
-        const generatedQuestions = await mockGenerateQuestions('General', 5)
+        // 3. Generate Questions via Gemini
+        const context = material.processed_text_content
 
-        // 3. Insert Questions
-        const questionsToInsert = generatedQuestions.map((q, index) => ({
+        if (!context || context.length < 50 || context.includes("Failed to extract content") || context.includes("Error reading file")) {
+            // Update status to failed so user knows
+            await supabase.from('exams').update({ status: 'failed' as any }).eq('id', examData.id)
+            throw new Error("Cannot generate exam: The study material content is missing or failed to process. Please try uploading the file again.")
+        }
+
+        let generatedQuestions;
+        try {
+            generatedQuestions = await generateExamQuestions(context, questionCount, difficulty, examType, customPrompt, material.title)
+        } catch (aiError) {
+            console.error("Gemini failed, falling back to mock:", aiError)
+            // Fallback to mock if API key is missing or quota exceeded
+            generatedQuestions = await mockGenerateQuestions(material.title, questionCount)
+        }
+
+        // 4. Insert Questions
+        const questionsToInsert = generatedQuestions.map((q: any, index: number) => ({
             exam_id: examData.id,
             question_text: q.question_text,
-            options: q.options, // Postgres JSONB will handle this array automatically
+            options: q.options,
             correct_answer: q.correct_answer,
             explanation: q.explanation,
             order_index: index,
@@ -47,7 +79,7 @@ export async function generateExam(materialId: string, difficulty: 'Easy' | 'Med
         const { error: questionsError } = await supabase.from('questions').insert(questionsToInsert)
         if (questionsError) throw new Error('Failed to save questions: ' + questionsError.message)
 
-        // 4. Update Exam Status
+        // 5. Update Exam Status
         await supabase
             .from('exams')
             .update({ status: 'ready' })
@@ -57,7 +89,6 @@ export async function generateExam(materialId: string, difficulty: 'Easy' | 'Med
 
     } catch (e) {
         console.error('Exam generation failed:', e)
-        // Cleanup or mark as failed
         await supabase.from('exams').update({ status: null }).eq('id', examData.id)
         throw e
     }
@@ -85,21 +116,95 @@ export async function submitExam(examId: string, answers: Record<string, string>
     const percentage = Math.round((score / questions.length) * 100)
 
     // 3. Update Exam
-    // Note: user_answers column might not exist yet if user hasn't run the SQL.
-    // We check or just try update. Ideally for robustness we'd try-catch or assume it's there per instruction.
-    // WE WILL TRY TO SAVE USER ANSWERS if the column exists.
-    const updates: any = { status: 'completed', score: percentage }
+    // Note: updated_at column is missing in schema, so we omit it.
+    const updates: any = {
+        status: 'completed',
+        score: percentage
+    }
 
-    // Attempt to add answers if we can (ignoring type check failure for now as it's dynamic)
-    // In strict TS we might need to cast or extend type.
+    // Attempt to add answers
     updates['user_answers'] = answers
+
+    // Verify user ownership before update
+    const { data: { user } } = await supabase.auth.getUser()
+    const { data: existingExam } = await supabase.from('exams').select('user_id').eq('id', examId).single()
+
+    if (existingExam && user && existingExam.user_id !== user.id) {
+        console.error(`ID Mismatch: Exam User ${existingExam.user_id} vs Current User ${user.id}`)
+    }
 
     const { error } = await supabase
         .from('exams')
         .update(updates)
         .eq('id', examId)
 
-    if (error) throw new Error(error.message)
+    if (error) {
+        console.error("Exam update failed:", error)
+        throw new Error(error.message)
+    }
+
+    // Verify update success
+    const { data: check } = await supabase.from('exams').select('status').eq('id', examId).single()
+    if (check?.status !== 'completed') {
+        console.error("Exam update appeared safe but status is not 'completed'. RLS likely blocked it.")
+        throw new Error("Failed to save exam results. Please try again.")
+    }
+
+    revalidatePath('/dashboard')
+    revalidatePath(`/exam/${examId}`)
 
     return { success: true, score: percentage }
+}
+
+export async function retakeExam(originalExamId: string) {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    const userId = user?.id || '00000000-0000-0000-0000-000000000000'
+
+    // 1. Fetch Original Exam
+    const { data: originalExam, error: examError } = await supabase
+        .from('exams')
+        .select('*')
+        .eq('id', originalExamId)
+        .single()
+
+    if (examError || !originalExam) throw new Error("Original exam not found")
+
+    // 2. Create New Exam Record
+    const { data: newExam, error: createError } = await supabase
+        .from('exams')
+        .insert({
+            user_id: userId,
+            material_source_id: originalExam.material_source_id,
+            title: originalExam.title,
+            difficulty: originalExam.difficulty,
+            status: 'ready'
+        })
+        .select()
+        .single()
+
+    if (createError) throw new Error(createError.message)
+
+    // 3. Fetch Original Questions
+    const { data: questions, error: questionsError } = await supabase
+        .from('questions')
+        .select('*')
+        .eq('exam_id', originalExamId)
+
+    if (questionsError || !questions) throw new Error("Failed to fetch original questions")
+
+    // 4. Duplicate Questions for New Exam
+    const newQuestions = questions.map(q => ({
+        exam_id: newExam.id,
+        question_text: q.question_text,
+        options: q.options,
+        correct_answer: q.correct_answer,
+        explanation: q.explanation,
+        order_index: q.order_index
+    }))
+
+    const { error: insertError } = await supabase.from('questions').insert(newQuestions)
+    if (insertError) throw new Error("Failed to clone questions")
+
+    return { success: true, newExamId: newExam.id }
 }
