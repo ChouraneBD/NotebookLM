@@ -12,7 +12,7 @@ export default function DashboardLayout({
                 <div>
                     <div className="h-20 flex items-center px-8 border-b border-gray-50">
                         <span className="material-symbols-outlined text-3xl text-[var(--primary-blue)] mr-2">school</span>
-                        <h1 className="font-bold text-2xl tracking-tight gradient-text">ExamSim</h1>
+                        <h1 className="font-bold text-2xl tracking-tight gradient-text">Moraja3aAI</h1>
                     </div>
                     <nav className="p-4 space-y-2 mt-4">
                         <Link href="/dashboard" className="flex items-center gap-3 px-4 py-3 rounded-xl text-gray-500 hover:bg-gray-50 hover:text-gray-900 font-medium transition-colors">
